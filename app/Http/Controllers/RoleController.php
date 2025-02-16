@@ -2,14 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Admin\SuperController;
+use App\Http\Controllers\Admin\WebSuperController;
 use App\Http\Requests\RoleRequest;
 use App\Http\Resources\RoleResource;
+use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Spatie\Permission\Middlewares\RoleMiddleware;
 
-class RoleController extends SuperController
+class RoleController extends WebSuperController
 {
 
     public $whichModel;
@@ -17,21 +19,31 @@ class RoleController extends SuperController
 
     public function __construct()
     {
-        $this->whichModel = app(Role::class);
+        $this->whichModel = Role::class;
         $this->responseResource = RoleResource::class;
         parent::__construct($this->whichModel, $this->responseResource);
     }
 
     public function store(RoleRequest $request)
-    {
-        $request->merge(['slug'=>Str::slug($request->name)]);
+    {   
         return parent::storeFunction($request);
+    }
+    
+    public function update(RoleRequest $request,$id)
+    {
+        return parent::updateFunction($request,$id);
     }
 
-    public function update(RoleRequest $request)
+    public function edit($id, $datas = array(null))
     {
-        return $request->all();
-        $request->merge(['slug'=>Str::slug($request->name)]);
-        return parent::storeFunction($request);
+        $datas['permissions'] = Permission::all();
+        return parent::edit($id,$datas);
     }
+
+    public function create($datas = array(null))
+    {
+        $datas['permissions'] = Permission::all();
+        return parent::create($datas);
+    }
+
 }

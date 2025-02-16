@@ -31,6 +31,8 @@ class PermissionSeeder extends Seeder
        'roles',
        'permissions',
        'users',
+       'promo-codes',
+       'cloth-types'
 //        'faculties',
 //        'subjects',
 //        'classes',
@@ -64,14 +66,14 @@ class PermissionSeeder extends Seeder
                 }
             }
         }
-        $this->command->info('Inserted ' . count($this->crudList) * count($this->permissionSlugs) . ' records.');
+        $this->command->info('Inserted ' . count($this->crudList) * count($this->permissionSlugs) . 'permission records.');
 
         DB::table('roles')->insert([
             [
                 'id'=>1,
                 'name'=>'Super Admin',
                 'slug'=>'super-admin',
-                'guard_name'=>'api',
+            'guard_name'=>'api',
             ],
             [
                 'id'=>2,
@@ -81,9 +83,10 @@ class PermissionSeeder extends Seeder
             ],
 
            ]);
+           
            $this->command->info('Inserted Role records.');
 
-           Role::first()->syncPermissions(Permission::all());
+           Role::find(1)->syncPermissions(Permission::all());
 
            $this->command->info('Inserted Permission record records.');
 

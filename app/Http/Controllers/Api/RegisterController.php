@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Login\CustomerRegisterAction;
 use App\Http\Controllers\Controller;
-use App\Mail\SendOtpMail;
 use App\Models\OtpVerification;
 use App\Models\User;
 use App\Services\SMS;
+use App\Mail\SendOtpMail;
+use Illuminate\Support\Facades\Mail;
+
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules\Password;
 
 
@@ -103,8 +106,9 @@ class RegisterController extends Controller
      *         mediaType="application/json",
      *         @OA\Schema(
      *             example={
-     *                 "mobile":"9800000000",
-     *                 "password": "****"
+     *                 "name": "customerMoh",
+     *                 "mobile":"1111111111",
+     *                 "password": "1111"
      *              }
      *         )
      *     )
@@ -123,55 +127,20 @@ class RegisterController extends Controller
     public function register(Request $request)
     {
         $this->validate($request,[
-            'mobile'=>'required|size:10|unique:users,mobile',
-            'password'=>'required|size:4'
+            'name'=>'required|string|max:255',
+            'mobile'=>'required|regex:/\b\d{10}\b/|unique:users,mobile',
+            'password'=>'required|regex:/\b\d{4}\b/',
             // 'password' => ['required',Password::min(8)->letters()->numbers()->symbols()]
-            // 'name'=>'required|string|max:255',
             // 'email' => 'required|email|max:50|unique:users,email',
             // 'password' => ['required',Password::min(8)->letters()->numbers()->symbols()]
         ]);
+       return (new CustomerRegisterAction())->handle($request);
 
-        $mobile = $request->mobile;
-
-        $user = User::create([
-            'mobile' => $mobile,
-            // 'email' => $request->email,
-            'password' => bcrypt($request->password)
-        ]);
-        $token = $user->createToken('MobileAuthApp')->accessToken;
-
-            DB::beginTransaction();
-        try{
-
-            // Mail::to($user)->send(new SendOtpMail($otp));
-            //generate token
-
-            $digit = mt_rand(1000, 9999);
-            //store token
-
-            OtpVerification::create([
-                'mobile'=>$mobile,
-                'verify_token'=>$digit,
-            ]);
-            $message = $digit . " is your otp code - ".env('APP_NAME');
-            new SMS($mobile,$message);
-
-
-            // $messageService->sendSMS($mobile, $message);
-
-            DB::commit();
-            // return response()->json([
-            //     'message' => 'Your verification code has been sent.',
-            // ],200);
-
-        }catch(\Exception $e){
-            DB::rollBack();
-            return response()->json([
-                // 'status'=>'Failed',
-                'message' => $e->getMessage(),
-            ],422);
-        }
-
-        return response()->json(['token' => $token], 200);
     }
+
+    public function sendOtp(Request $request)
+    {
+
+    }
+
 }

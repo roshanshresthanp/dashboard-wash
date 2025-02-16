@@ -4,15 +4,17 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 use Laravel\Passport\HasApiTokens;
 use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Notifications\Notifiable;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Spatie\Activitylog\Models\Activity;
 
 /**
  * @OA\Schema(
@@ -23,7 +25,7 @@ use Spatie\Permission\Traits\HasRoles;
  *     )
  * )
  */
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles,
     SoftDeletes,
@@ -34,7 +36,7 @@ class User extends Authenticatable
     protected static $logOnlyDirty = true;
     protected static $logName = 'User';
     const PERMISSIONSLUG = 'users';
-    protected $guard_name = 'api';
+    // protected $guard_name = 'api';
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -50,12 +52,12 @@ class User extends Authenticatable
         'password',
         'username',
         'mobile',
-        // 'gender',
-        'photo',
+        'image',
         'address',
         'added_by',
         'password_reset',
         'status',
+        'fcm_token'
     ];
 
     /**
@@ -76,28 +78,103 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+    public function getImageAttribute($value)
+    {
+        $img = asset('avatar.png');
+        if($value)
+        {
+            $path = public_path(parse_url($value)['path']);
+            if(file_exists($path))
+            $img = $value;
+        }
+        return  $img;   
+    }
+    public function scopeCustomer($query)
+    {
+        return $query->whereHas('roles',function($q){
+            $q->where('id','2');
+        });
+    }
 
+    public function scopeUser($query)
+    {
+        return $query->whereHas('roles',function($q){
+            $q->whereNot('id','2');
+        });
+    }
 
-    // public function afterCreateProcess()
-    // {
-    //     $request = request();
-    //     $role = $request->get('role_id');
-    //     $this->roles()->attach([$role]);
+    public function isAdmin()
+    {
+        if($this->roles->filter(function($item){
+            return $item->slug == 'super-admin';
+        })->isEmpty()){
+            return false;
+        }
+        return true;
+    }
 
-    //     if (array_key_exists("media_id", $request->all())) {
-    //         $this->attachMedia($request->media_id, 'user_photo');
-    //     }
-    // }
+    public function profile()
+    {
+        return $this->hasOne(Profile::class);
+    }
 
-    // public function afterUpdateProcess()
-    // {
-    //     $request = request();
-    //     $role = $request->get('role_id');
-    //     $this->syncRoles([$role]);
+    public function promo()
+    {
+        return $this->belongsToMany(PromoCode::class,'customer_promo','user_id','promo_id')->withPivot('usage');
+    }
 
-    //     if (array_key_exists("media_id", $request->all())) {
-    //         $this->syncMedia($request->media_id, 'user_photo');
-    //     }
-    // }
+    
+
+    public function afterCreateProcess()
+    {
+        $this->profile()->create([
+            'temporary_address' =>$this->request->temporary_address,
+            'permanent_address' =>$this->request->permanent_address,
+            'latitude' =>$this->request->latitude,
+            'longitude' =>$this->request->longitude,
+            'gender' =>$this->request->gender,
+
+        ]);
+
+        
+        $request = request();
+        $role = $request->get('role_id');
+        $this->roles()->attach([$role]);
+
+        // if (array_key_exists("media_id", $request->all())) {
+        //     $this->attachMedia($request->media_id, 'user_photo');
+        // }
+    }
+
+    public function afterUpdateProcess()
+    {
+        dd($this->request->temporary_address);
+        $this->profile()->update([
+            'temporary_address' =>$this->request->temporary_address,
+            'permanent_address' =>$this->request->permanent_address,
+            'latitude' =>$this->request->latitude,
+            'longitude' =>$this->request->longitude,
+            'gender' =>$this->request->gender,
+
+        ]);
+
+        $request = request();
+        $role = $request->get('role_id');
+        $this->syncRoles([$role]);
+
+        // if (array_key_exists("media_id", $request->all())) {
+        //     $this->syncMedia($request->media_id, 'user_photo');
+        // }
+    }
+
+    public function buckets()
+    {
+        return $this->hasMany(Bucket::class);
+    }
+
+    public function activity(): MorphMany
+    {
+        return $this->morphMany(Activity::class,'causer');
+    }
 
 }

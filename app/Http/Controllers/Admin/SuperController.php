@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 
+
 class SuperController extends Controller
 {
 
@@ -37,24 +38,32 @@ class SuperController extends Controller
      * )
      */
 
+     
+
     public $whichModel;
-    public $responseResource;
+    public $responseResource, $directory;
+
+   
 
     public function __construct($whichModel, $responseResource)
     {
         $this->whichModel = $whichModel;
         $this->responseResource = $responseResource;
+        $this->directory = $this->whichModel::PERMISSIONSLUG;
+
     }
 
     public function getAllFieldNames()
     {
-        $fillableFields = (new $this->whichModel())->getFillable();
-        return $fillableFields;
+        return (new $this->whichModel())->getFillable();
     }
-
     public function index()
     {
-        return $this->whichModel::paginate(20);
+
+        // return $this->whichModel::paginate(5);
+        // return $this->responseResource::collection($this->whichModel::all());
+
+        return new $this->responseResource($this->whichModel::paginate(20));
     }
 
     public function all()
@@ -113,15 +122,8 @@ class SuperController extends Controller
         }
     }
 
-    public function updateModelFunction(Request $request, $id)
-    {
-            $model = $this->whichModel::findOrFail($id);
-            $model->update($request->only($this->getAllFieldNames()));
-            return $model;
-    }
 
-
-    public function updateFunction(Request $request, $id)
+    public function updateFunction($request, $id)
     {
         // $authUser = Auth::user();
         // $permissionSlug = $this->whichModel::PERMISSIONSLUG;
@@ -129,18 +131,31 @@ class SuperController extends Controller
 //            throw new AccessDeniedException('unauthorized_access');
 //        }
         DB::beginTransaction();
-        try {
-            $model = $this->updateModelFunction($request, $id);
-            if (method_exists(new $this->whichModel(), 'afterUpdateProcess')) {
-                $model->afterUpdateProcess();
-            }
+    try {
+            $model = $this->whichModel::findOrFail($id);
+            // dd(gettype($req));
+
+            $req = $request->only($this->getAllFieldNames());
+            $model->update($req);
+            $model->save();
+            
+            // if (method_exists(new $this->whichModel(), 'afterUpdateProcess')) {
+            //     $model->afterUpdateProcess();
+
+            // }
             DB::commit();
+
+
+            return Response::json(array(
+                'message' => 'Something went wrong',
+                'data'=>$model
+            ), 200);
+
             return (new $this->responseResource($model))->response()->setStatusCode(200);
 
         } catch (\Exception $e) {
             DB::rollBack();
             abort(500, $e);
-
         }
     }
 

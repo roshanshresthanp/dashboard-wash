@@ -21,7 +21,7 @@ class Role extends \Spatie\Permission\Models\Role
     protected static $logAttributes = ['*'];
     protected static $logOnlyDirty = true;
     protected static $logName = 'Role';
-    const PERMISSIONSLUG = 'role';
+    const PERMISSIONSLUG = 'roles';
     protected $guard_name = 'api';
 
     public function getActivitylogOptions(): LogOptions
@@ -38,16 +38,17 @@ class Role extends \Spatie\Permission\Models\Role
     protected $fillable = ['name','guard_name','slug'];
 
 
-    // public function afterCreateProcess()
-    // {
-    //     $permissions = request()->get('permissions');
-    //     $this->permissions()->sync($permissions);
-    // }
+    public function afterCreateProcess()
+    {
 
-    // public function afterUpdateProcess()
-    // {
-    //     $permissions = request()->get('permissions');
-    //     $this->permissions()->sync($permissions);
-    // }
+        $permissions = request()->get('permissions');
+        $this->permissions()->sync($permissions);
+    }
+
+    public function afterUpdateProcess()
+    {
+        $permissions = request()->get('permissions');
+        $this->permissions()->sync($permissions);
+    }
 
 }

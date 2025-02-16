@@ -1,9 +1,17 @@
 <?php
 
+use App\Http\Controllers\Api\ActivityController;
+use App\Http\Controllers\Api\ClothTypeController;
 use App\Http\Controllers\Api\LoginController;
+use App\Http\Controllers\Api\OtpController;
+use App\Http\Controllers\Api\PromoCodeController;
 use App\Http\Controllers\Api\RegisterController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\BucketController;
+use App\Http\Controllers\PickTimeController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\ServiceController;
+use App\Models\User;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -27,43 +35,39 @@ use Illuminate\Support\Facades\Route;
  * )
  */
 
-Route::middleware(['api','auth:api'])->get('/user', function (Request $request) {
-    return auth()->user()->roles[0];
-    // dd(auth()->user()->hasRole('Super Admin'));
-});
+// Route::middleware(['api','auth:api'])->get('/user', function (Request $request) {
+
+//     return auth()->user();
+// });
 
 Route::post('login',[LoginController::class,'login']);
+Route::post('social/login',[LoginController::class,'socialLogin']);
+
 Route::post('register',[RegisterController::class,'register']);
-
-
-
-
-Route::get('/profile', function (Request $request) {
-    // return 'dsdsd';
-    return (new \App\Http\Resources\ProfileResource($request->user()))
-        ->response()
-        ->setStatusCode(200);
-});
-Route::get('/test', function () {
-    dd('dsdsd');
-});
-
-
+Route::post('otp/send',[OtpController::class,'sendOtp']);
+Route::post('otp/verify',[OtpController::class,'verifyOtp']);
+Route::post('profile/reset-password', [UserController::class, 'resetPassword']);
 
 Route::group([
     'middleware' => ['api', 'auth:api'],
     // 'namespace' => 'Api\V1', 'as' => 'api.'
 ], function () {
 
-            Route::group(['prefix' => 'users'], function () {
-            Route::get('/', [UserController::class, 'index']);
-            Route::get('all', [UserController::class, 'all']);
-            // Route::post('export', [UserController::class, 'export']);
-            Route::post('/', [UserController::class, 'store']);
-            Route::post('delete', [UserController::class, 'delete']);
-            Route::post('/{id}', [UserController::class, 'update']);
-            // Route::post('/{id}/reset-password', [UserController::class, 'resetPassword']);
+    Route::get('pickup-time',[PickTimeController::class,'apiPickupTime']);
+    Route::get('services',[ServiceController::class,'apiServices']);
+    Route::get('cloth-category',[ClothTypeController::class,'category']);
+    Route::apiResource('cloth-type',ClothTypeController::class);
+    Route::apiResource('offers',PromoCodeController::class);
+    Route::post('use/offer',[PromoCodeController::class,'useOffer']);
+    Route::get('use/offer',[PromoCodeController::class,'assignedOffer']);
+    Route::apiResource('bucket',BucketController::class);
 
+    Route::get('my-activity',[ActivityController::class,'myActivity']);
+
+        Route::prefix('profile')->group(function () {
+            Route::post('/update', [UserController::class, 'update']);
+            Route::get('/view', [UserController::class, 'view']);
+            Route::post('/change-password', [UserController::class, 'changePassword']);
         });
 
         Route::group(['prefix' => 'roles'], function () {
@@ -77,6 +81,3 @@ Route::group([
 
         });
 });
-
-
-// UserController

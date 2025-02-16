@@ -7,8 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
+use Laravel\Socialite\Facades\Socialite;
 
 class LoginController extends Controller
 {
@@ -23,8 +22,8 @@ class LoginController extends Controller
      *         mediaType="application/json",
      *         @OA\Schema(
      *             example={
-     *                 "mobile": "9800000000",
-     *                 "password": "****"
+     *                 "mobile": "1111111111",
+     *                 "password": "1111"
      *              }
      *         )
      *     )
@@ -42,43 +41,80 @@ class LoginController extends Controller
 
     public function login(Request $request)
     {
-
         $this->validate($request,[
-            'mobile' => ['required','string','size:10'],
+            'mobile' => ['required','regex:/\b\d{10}\b/','exists:users'],
+            'password'=>'required|regex:/\b\d{4}\b/',
             // 'password' => ['required',Password::min(8)->letters()->numbers()->symbols()]
         ]);
 
-        // return $request->all();
-        try {
-            $user = User::firstWhere(['mobile'=>$request->mobile]);
+        return (new UserLoginAction($request))->handle();  
+    }
 
-            if(!$user || !Hash::check($request->password, $user->password)){
-                return response()->json(['message' => 'Invalid email and password.'], 400);
-            }
-            // if (Hash::check($request->password, $user->password)) {
-            //     dd('pass matched');
-            // }
+    /**
+     * @OA\Post(
+     *   path="/social/login",
+     *   tags={"Login"},
+     *   operationId="Social media login",
+     * summary="Social media Login",
+     *   @OA\RequestBody(
+     *      @OA\MediaType(
+     *         mediaType="application/json",
+     *         @OA\Schema(
+     *             example={
+     *                 "email": "social@media.login",
+     *              }
+     *         )
+     *     )
+     *   ),
+     *
+     *   @OA\Response(
+     *      response=200,
+     *       description="Success",
+     *      @OA\MediaType(
+     *           mediaType="application/json",
+     *      )
+     *   )
+     *)
+     **/
 
+    public function socialLogin(Request $request)
+    {
+        return $request->all();
+        // $this->validate($request,[
+        //     'mobile' => ['required','regex:/\b\d{10}\b/','exists:users'],
+        //     'password'=>'required|regex:/\b\d{4}\b/',
+        //     // 'password' => ['required',Password::min(8)->letters()->numbers()->symbols()]
+        // ]);
 
-            if (auth()->guard('api')->setUser($user)){
-            // if (auth()->check(['email'=>$request->email,'password'=>$request->password])){
+        // return (new UserLoginAction($request))->handle();  
+    }
 
-                $success['message'] = "login success";
-                $success['token'] = auth()->user()->createToken('MobileAuthApp')->accessToken;
+    public function redirectToGoogle()
+    {
+        return Socialite::driver('google')->redirect();
+    }
 
-                return response()->json($success, 200);
-            } else {
-                return response()->json(['message' => 'Invalid email and password.'], 400);
-            }
+    public function handleGoogleCallback()
+    {
+        $user = Socialite::driver('google')->stateless()->user();
+        // dd($user->email);
+        $authUser = User::firstOrCreate(
+            ['email'=>$user->email],
+            [
+            'name' => $user->name,
+            'email' => $user->email,
+            // 'google_id'=> $user->id,
+            // 'image'=>$user->picture,
+            'password' => encrypt('123456dummy')
+        ]);
+        $authUser->roles()->sync([2]);
 
-        }catch (\ErrorException $e){
-            return response()->json([
-                'message' => 'Login failed',
-                // 'errors'=>$e->getMessage()
-            ],500);
-            // return response()->json(['message' => 'Invalid email and password.'], 400);
-        }
-
+        Auth::login($authUser, true);
+        return response([
+            'token'=>$user->token,
+            'message'=> 'Logged in successfully',
+            'profile'=> auth()->user()->roles
+        ]);
     }
 
 

@@ -13,19 +13,22 @@ class SMS{
     {
         $check = substr($number, 0, 3);
         $validNumber = in_array($check,[984,985,986,981,980,982]);
-        if ($validNumber) {
+        if ($validNumber)
             return true;
-        }
+        // dd($validNumber);
         return response()->json([
             'message' =>'Invalid phone number',
         ],422);
+        // abort(404);
     }
 
     public function sendSMS($phone, $message)
     {
+
+        return $this->isValidNumber($phone);
         $request_params = [
-            "st" => "s",
-            "mt" => "1",
+            // "st" => "s",
+            // "mt" => "1",
             "mobile" => $phone,
             "message" => $message,
         ];
@@ -39,7 +42,7 @@ class SMS{
             'number' => $phone,
             'request' => $request_params,
             'user_id' => $user_id,
-            "provider" => "sociarSms"
+            "provider" => "sociar sms"
         ]);
 
         try {
@@ -50,7 +53,7 @@ class SMS{
                     'headers' => [
                         'Accept' => 'application/json',
                         'Content-Type' => 'application/json',
-                        'Authorization' => 'Bearer ' . config("app.message.token")
+                        'Authorization' => 'Bearer ' . env('SMS_TOKEN')
                     ]
                 ]);
 
@@ -62,14 +65,16 @@ class SMS{
                     "message" => $response
                 ];
                 $sms_log->save();
-                return true;
             }
+            return true;
+
         } catch (ClientException $exception) {
             Log::error('Cannot sent message to mobile ' . $exception->getMessage());
             $sms_log->response = [
                 'status' => false,
                 'message' => $exception->getMessage()
             ];
+            $sms_log->resent = 1;
             $sms_log->save();
             return false;
         } catch (\Exception $exception) {
@@ -78,6 +83,7 @@ class SMS{
                 'status' => false,
                 'message' => $exception->getMessage()
             ];
+            $sms_log->resent = 1;
             $sms_log->save();
             return false;
         }
